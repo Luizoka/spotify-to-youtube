@@ -21,6 +21,10 @@ passport.use(new GoogleStrategy({
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackURL: "http://localhost:3000/auth/google/callback"
 }, (accessToken, refreshToken, profile, done) => {
+    console.log("Inside GoogleStrategy callback");
+    console.log("Access Token:", accessToken);
+    console.log("Refresh Token:", refreshToken);
+    console.log("Profile:", profile);
     return done(null, { profile, accessToken, refreshToken });
 }));
 
@@ -41,8 +45,24 @@ app.use("/api", playlistRoutes);
 // Rotas de autenticação
 app.get("/auth/google", passport.authenticate("google", { scope: ["https://www.googleapis.com/auth/youtube.force-ssl"] }));
 
-app.get("/auth/google/callback", passport.authenticate("google", { failureRedirect: "/" }), (req, res) => {
-    res.redirect("/"); // Redirecionar para a página inicial após o login
+app.get("/auth/google/callback", (req, res, next) => {
+    passport.authenticate("google", (err, user, info) => {
+        if (err) {
+            console.error("Error during authentication:", err);
+            return next(err);
+        }
+        if (!user) {
+            console.error("Authentication failed:", info);
+            return res.redirect("/");
+        }
+        req.logIn(user, (err) => {
+            if (err) {
+                console.error("Error during login:", err);
+                return next(err);
+            }
+            return res.redirect("/");
+        });
+    })(req, res, next);
 });
 
 app.listen(PORT, () => {

@@ -1,17 +1,8 @@
-const { google } = require("googleapis");
+const { getYoutubeClient } = require("./youtubeAuth.service");
 
-function getYoutubeClient() {
-    const oauth2Client = new google.auth.OAuth2(
-        process.env.YOUTUBE_CLIENT_ID,
-        process.env.YOUTUBE_CLIENT_SECRET
-        // ...caso precise de redirect...
-    );
-    oauth2Client.setCredentials({ refresh_token: process.env.YOUTUBE_REFRESH_TOKEN });
-    return google.youtube({ version: "v3", auth: oauth2Client });
-}
-
-async function createYoutubePlaylist(playlistName, tracks) {
-    const youtube = getYoutubeClient();
+async function createYoutubePlaylist(playlistName, tracks, accessToken) {
+    const youtube = getYoutubeClient(accessToken);
+    
     // Criar playlist
     const playlistResponse = await youtube.playlists.insert({
         part: ["snippet,status"],
@@ -20,11 +11,39 @@ async function createYoutubePlaylist(playlistName, tracks) {
             status: { privacyStatus: "private" }
         }
     });
+
+    const playlistId = playlistResponse.data.id;
+
     // Adicionar músicas
     for (const track of tracks) {
         const query = `${track.name} ${track.artist}`;
-        // ...buscar vídeo no YouTube e inserir na playlist...
+        
+        // Buscar vídeo no YouTube
+        const searchResponse = await youtube.search.list({
+            part: "snippet",
+            q: query,
+            maxResults: 1,
+            type: "video"
+        });
+
+        const videoId = searchResponse.data.items[0]?.id?.videoId;
+        if (videoId) {
+            // Inserir vídeo na playlist
+            await youtube.playlistItems.insert({
+                part: ["snippet"],
+                resource: {
+                    snippet: {
+                        playlistId: playlistId,
+                        resourceId: {
+                            kind: "youtube#video",
+                            videoId: videoId
+                        }
+                    }
+                }
+            });
+        }
     }
+
     return { success: true, message: "Playlist criada com sucesso!" };
 }
 

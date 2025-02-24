@@ -68,9 +68,14 @@ async function createYoutubePlaylist(req, res) {
         // Obter todas as músicas da playlist
         const tracks = await getPlaylistTracks(playlistId, accessToken);
 
+        console.log("Nome da playlist:", playlistName);
+        console.log("Músicas da playlist:", tracks);
+
         const result = await createYT(playlistName, tracks, req.user.accessToken);
+        console.log("Resultado da criação da playlist no YouTube:", result);
         res.json(result);
     } catch (error) {
+        console.error("Erro ao criar a playlist no YouTube:", error.message);
         res.status(500).json({ error: error.message });
     }
 }
